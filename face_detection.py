@@ -4,11 +4,19 @@ Detects faces, recognizes known individuals, checks for mask-wearing,
 and logs all detections to a CSV file.
 """
 
+import argparse
 import os
+import time
+
 import cv2
 import face_recognition
 import numpy as np
+
 from detection_logger import DetectionLogger
+
+# Detection thresholds
+FACE_RECOGNITION_THRESHOLD = 0.6  # Distance threshold for face matching
+MASK_DETECTION_THRESHOLD = 0.25   # Color coverage threshold for mask detection
 
 
 class FaceRecognitionApp:
@@ -117,8 +125,9 @@ class FaceRecognitionApp:
         black_ratio = cv2.countNonZero(black_mask) / total_pixels
 
         # If significant mask color is detected in lower face
-        mask_threshold = 0.25
-        if blue_ratio > mask_threshold or white_ratio > mask_threshold or black_ratio > mask_threshold:
+        if (blue_ratio > MASK_DETECTION_THRESHOLD or
+                white_ratio > MASK_DETECTION_THRESHOLD or
+                black_ratio > MASK_DETECTION_THRESHOLD):
             return "Mask"
 
         return "No Mask"
@@ -133,7 +142,6 @@ class FaceRecognitionApp:
         Returns:
             Boolean indicating whether to log.
         """
-        import time
         current_time = time.time()
 
         if name in self.recently_logged:
@@ -179,7 +187,7 @@ class FaceRecognitionApp:
                 best_match_index = np.argmin(face_distances)
                 confidence = 1 - face_distances[best_match_index]
 
-                if face_distances[best_match_index] < 0.6:  # Threshold for match
+                if face_distances[best_match_index] < FACE_RECOGNITION_THRESHOLD:
                     name = self.known_face_names[best_match_index]
 
             # Detect mask
@@ -243,8 +251,6 @@ class FaceRecognitionApp:
 
 def main():
     """Main entry point for the application."""
-    import argparse
-
     parser = argparse.ArgumentParser(description='Real-time Face Recognition with Mask Detection')
     parser.add_argument('--known-faces', '-k', default='known_faces',
                         help='Directory containing known face images')

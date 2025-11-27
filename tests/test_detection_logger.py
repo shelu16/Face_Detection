@@ -2,12 +2,14 @@
 
 import csv
 import os
+import sys
 import tempfile
 import unittest
 from datetime import datetime
 
-import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path for imports when running tests directly
+if __name__ == '__main__':
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from detection_logger import DetectionLogger
 
