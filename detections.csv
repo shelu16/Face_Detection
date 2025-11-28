@@ -1,0 +1,50 @@
+timestamp,name,mask_status,confidence
+2025-11-28 11:41:59,Unknown,No Mask,
+2025-11-28 11:42:26,Unknown,No Mask,
+2025-11-28 11:48:03,Unknown,No Mask,
+2025-11-28 11:48:14,Unknown,Mask,
+2025-11-28 11:48:46,Unknown,No Mask,
+2025-11-28 11:49:03,Unknown,No Mask,
+2025-11-28 11:49:10,Unknown,Mask,
+2025-11-28 11:49:15,Unknown,No Mask,
+2025-11-28 11:49:21,Unknown,No Mask,
+2025-11-28 11:50:05,Unknown,No Mask,
+2025-11-28 11:50:11,Unknown,No Mask,
+2025-11-28 11:50:55,Unknown,Mask,
+2025-11-28 11:51:00,Unknown,Mask,
+2025-11-28 11:51:25,Unknown,No Mask,
+2025-11-28 12:38:10,Unknown,Mask,
+2025-11-28 12:38:19,Unknown,No Mask,
+2025-11-28 12:38:24,Unknown,No Mask,
+2025-11-28 12:38:40,Unknown,No Mask,
+2025-11-28 12:38:56,Unknown,No Mask,
+2025-11-28 12:39:03,Unknown,No Mask,
+2025-11-28 12:39:08,Unknown,No Mask,
+2025-11-28 12:39:14,Unknown,No Mask,
+2025-11-28 12:39:19,Unknown,No Mask,
+2025-11-28 12:39:55,Unknown,Mask,
+2025-11-28 12:54:06,Unknown,Mask,
+2025-11-28 12:54:13,Unknown,No Mask,
+2025-11-28 12:54:51,Unknown,No Mask,
+2025-11-28 12:55:11,Unknown,No Mask,
+2025-11-28 12:55:53,Unknown,No Mask,
+2025-11-28 12:55:58,Unknown,No Mask,
+2025-11-28 12:56:03,Unknown,No Mask,
+2025-11-28 12:56:12,Unknown,No Mask,
+2025-11-28 12:56:18,Unknown,No Mask,
+2025-11-28 12:57:20,shailesh,No Mask,0.48
+2025-11-28 12:57:40,shailesh,No Mask,0.41
+2025-11-28 12:57:40,Unknown,No Mask,0.39
+2025-11-28 12:57:47,Unknown,No Mask,0.39
+2025-11-28 12:58:04,Unknown,No Mask,0.38
+2025-11-28 12:59:10,shailesh2,No Mask,0.54
+2025-11-28 12:59:15,shailesh2,No Mask,0.64
+2025-11-28 12:59:20,shailesh2,No Mask,0.6
+2025-11-28 12:59:25,shailesh2,No Mask,0.59
+2025-11-28 12:59:37,shailesh2,No Mask,0.56
+2025-11-28 12:59:42,shailesh2,No Mask,0.59
+2025-11-28 12:59:47,shailesh2,No Mask,0.58
+2025-11-28 13:00:26,shailesh2,No Mask,0.58
+2025-11-28 13:00:32,shailesh2,Mask,0.57
+2025-11-28 13:00:40,shailesh2,No Mask,0.58
+2025-11-28 13:01:15,shailesh2,No Mask,0.58
