@@ -1,18 +1,17 @@
 """
-Real-time Face Recognition Application
+Real-time Face Recognition Application - LINUX OPTIMIZED
 Detects faces, recognizes known individuals, checks for mask-wearing,
 logs all detections, and performs object detection using YOLOv8.
+
+This version is optimized for Linux with OpenCV X11 display support.
 """
 
 import argparse
 import os
 import platform
 import re
-import threading
 import time
 from urllib.parse import urlparse
-from PIL import Image, ImageTk
-import tkinter as tk
 
 import cv2
 import face_recognition
@@ -36,7 +35,7 @@ YOLO_CONFIDENCE_THRESHOLD = 0.5   # YOLOv8 confidence threshold
 
 # Platform detection
 PLATFORM = platform.system()  # 'Linux', 'Windows', 'Darwin'
-IS_WSL = 'microsoft' in platform.release().lower()  # Check if running on WSL
+IS_WSL = 'microsoft' in platform.release().lower() if PLATFORM == 'Linux' else False
 
 
 def is_valid_ip_camera_url(url):
@@ -101,7 +100,7 @@ def test_camera_source(source):
 
 
 class DisplayHelper:
-    """Helper class to manage display window with cross-platform support using Tkinter/PIL."""
+    """Helper class to manage display window with OpenCV for Linux."""
     
     def __init__(self, window_name="Face Recognition", width=800, height=600):
         """
@@ -116,88 +115,46 @@ class DisplayHelper:
         self.width = width
         self.height = height
         self.display_available = False
-        self.root = None
-        self.label = None
-        self.quit_requested = False
-        self._init_window()
+        self._test_display()
     
-    def _init_window(self):
-        """Initialize Tkinter window."""
+    def _test_display(self):
+        """Test if display is available."""
         try:
-            self.root = tk.Tk()
-            self.root.title(self.window_name)
-            self.root.geometry(f"{self.width}x{self.height}")
-            
-            # Create label for displaying frames
-            self.label = tk.Label(self.root, bg="black")
-            self.label.pack(fill=tk.BOTH, expand=True)
-            
-            # Bind quit event
-            self.root.protocol("WM_DELETE_WINDOW", self._on_quit)
-            self.root.bind('q', lambda e: self._on_quit())
-            
+            # Try to create and destroy a test window
+            cv2.namedWindow('__test__', cv2.WINDOW_NORMAL)
+            cv2.destroyWindow('__test__')
             self.display_available = True
-        except Exception as e:
-            print(f"Warning: Could not initialize display - {e}")
+        except cv2.error:
             self.display_available = False
-            self._cleanup_window()
-    
-    def _on_quit(self):
-        """Handle quit request."""
-        self.quit_requested = True
-    
-    def _cleanup_window(self):
-        """Clean up Tkinter window."""
-        try:
-            if self.root:
-                self.root.destroy()
-                self.root = None
-        except Exception:
-            pass
     
     def show(self, frame):
         """
         Display frame in a window.
         
         Args:
-            frame: Image frame to display (BGR format from OpenCV)
+            frame: Image frame to display
             
         Returns:
             True if display succeeded, False otherwise
         """
-        if not self.display_available or not self.root:
+        if not self.display_available:
             return False
         
         try:
-            # Update window events (non-blocking)
-            self.root.update()
-            
-            # Convert BGR to RGB and resize
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame_rgb = cv2.resize(frame_rgb, (self.width, self.height))
-            
-            # Convert to PIL Image
-            pil_image = Image.fromarray(frame_rgb)
-            
-            # Convert to PhotoImage for Tkinter
-            tk_image = ImageTk.PhotoImage(pil_image)
-            
-            # Update label
-            self.label.config(image=tk_image)
-            self.label.image = tk_image  # Keep a reference to prevent garbage collection
-            
+            # Resize frame to fit window
+            resized = cv2.resize(frame, (self.width, self.height))
+            cv2.imshow(self.window_name, resized)
             return True
-        except Exception as e:
-            print(f"Error displaying frame: {e}")
+        except cv2.error:
             self.display_available = False
             return False
     
     def check_quit(self, delay=1):
         """
-        Check for quit command.
+        Check for quit command (press 'q').
         
         Args:
-            delay: Delay in milliseconds (ignored for Tkinter)
+            delay: Delay in milliseconds for waitKey
             
         Returns:
             True if quit command pressed, False otherwise
@@ -205,12 +162,19 @@ class DisplayHelper:
         if not self.display_available:
             return False
         
-        return self.quit_requested
+        try:
+            key = cv2.waitKey(delay) & 0xFF
+            return key == ord('q')
+        except cv2.error:
+            return False
     
     def close(self):
         """Close display window."""
-        self._cleanup_window()
-        self.display_available = False
+        if self.display_available:
+            try:
+                cv2.destroyAllWindows()
+            except cv2.error:
+                pass
 
 
 class FaceRecognitionApp:
@@ -284,9 +248,6 @@ class FaceRecognitionApp:
         """
         Detect if a person is wearing a mask.
 
-        This uses a simple heuristic based on the lower face region.
-        For production use, consider using a trained mask detection model.
-
         Args:
             frame: The video frame.
             face_location: Tuple of (top, right, bottom, left) coordinates.
@@ -308,17 +269,14 @@ class FaceRecognitionApp:
         hsv = cv2.cvtColor(lower_face, cv2.COLOR_BGR2HSV)
 
         # Check for common mask colors (blue, white, black, green)
-        # Blue surgical masks
         blue_lower = np.array([90, 50, 50])
         blue_upper = np.array([130, 255, 255])
         blue_mask = cv2.inRange(hsv, blue_lower, blue_upper)
 
-        # White masks
         white_lower = np.array([0, 0, 180])
         white_upper = np.array([180, 30, 255])
         white_mask = cv2.inRange(hsv, white_lower, white_upper)
 
-        # Black masks
         black_lower = np.array([0, 0, 0])
         black_upper = np.array([180, 255, 50])
         black_mask = cv2.inRange(hsv, black_lower, black_upper)
@@ -332,7 +290,6 @@ class FaceRecognitionApp:
         white_ratio = cv2.countNonZero(white_mask) / total_pixels
         black_ratio = cv2.countNonZero(black_mask) / total_pixels
 
-        # If significant mask color is detected in lower face
         if (blue_ratio > MASK_DETECTION_THRESHOLD or
                 white_ratio > MASK_DETECTION_THRESHOLD or
                 black_ratio > MASK_DETECTION_THRESHOLD):
@@ -375,7 +332,6 @@ class FaceRecognitionApp:
             
             return detections
         except Exception as e:
-            # Silently fail if object detection fails
             return []
 
     def _should_log(self, name):
@@ -473,7 +429,7 @@ class FaceRecognitionApp:
 
         return frame
 
-    def run(self, camera_index=1, video_file=None, headless=None, display=False):
+    def run(self, camera_index=0, video_file=None, headless=None, display=False):
         """
         Run the real-time face recognition application.
 
@@ -481,25 +437,25 @@ class FaceRecognitionApp:
             camera_index: Index of the camera to use (if video_file is None).
             video_file: Path to a video file to process instead of camera.
             headless: If True, process without displaying video. 
-                     If None (default), auto-detect based on platform/environment.
-            display: If True, try to show display window (overrides headless auto-detection).
+                     If None (default), auto-detect based on environment.
+            display: If True, try to show display window.
         """
         # Auto-detect headless mode if not explicitly set
         if display:
             headless = False
         elif headless is None:
-            # Use headless mode on WSL by default (unless running with X11 forwarding)
+            # Use headless mode on WSL by default (unless X11 forwarding is available)
             if IS_WSL:
                 headless = not os.environ.get('DISPLAY')
             else:
-                # On native Windows, default to headless (no GTK+ support by default)
-                headless = PLATFORM == 'Windows'
+                # On native Linux, prefer display if available
+                headless = False
         
         # Initialize display helper
         display_helper = DisplayHelper("Face Recognition", width=800, height=600)
         
         print("Starting face recognition application...")
-        print(f"Platform: {PLATFORM}")
+        print(f"Platform: {PLATFORM} (Linux Optimized)")
         if IS_WSL:
             print("Running on WSL (Windows Subsystem for Linux)")
         print(f"Logging detections to: {self.logger.get_log_path()}")
@@ -567,33 +523,20 @@ class FaceRecognitionApp:
 def main():
     """Main entry point for the application."""
     parser = argparse.ArgumentParser(
-        description='Real-time Face Recognition with Mask Detection',
+        description='Real-time Face Recognition with Mask Detection (Linux)',
         epilog='''
 EXAMPLES:
   # Use local webcam (index 0)
-  python face_detection.py --camera 0
+  python face_detection_linux.py --camera 0
   
   # Use video file
-  python face_detection.py --video path/to/video.mp4
+  python face_detection_linux.py --video path/to/video.mp4
   
-  # Use IP camera (e.g., IP Webcam app on phone)
-  python face_detection.py --video http://192.168.1.100:8080/video
+  # Use IP camera from mobile device
+  python face_detection_linux.py --video http://192.168.1.100:8080/video
   
-  # Use RTSP stream from mobile device or IP camera
-  python face_detection.py --video rtsp://192.168.1.100:554/stream
-  
-  # Force display mode (try to show video window)
-  python face_detection.py --camera 0 --display
-  
-  # Force headless mode (no display, faster processing)
-  python face_detection.py --video http://192.168.1.100:8080/video --headless
-  
-MOBILE CAMERA SETUP:
-  1. Install "IP Webcam" app on your Android phone (Google Play Store)
-  2. Open the app and note the IP address (e.g., 192.168.1.100)
-  3. Run: python face_detection.py --video http://192.168.1.100:8080/video
-  
-  For iPhone: Use apps like "Codeshot" or "Reincubate Codeshot"
+  # Headless mode (no display)
+  python face_detection_linux.py --camera 0 --headless
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -602,16 +545,16 @@ MOBILE CAMERA SETUP:
                         help='Directory containing known face images')
     parser.add_argument('--log-file', '-l', default='detections.csv',
                         help='Path to the detection log CSV file')
-    parser.add_argument('--camera', '-c', type=int, default=1,
+    parser.add_argument('--camera', '-c', type=int, default=0,
                         help='Camera index to use (0, 1, 2, etc.)')
     parser.add_argument('--video', '-v', default=None,
-                        help='Video source: file path, IP camera URL (http://...), or RTSP stream (rtsp://...)')
+                        help='Video source: file path or IP camera URL')
     parser.add_argument('--test-camera', action='store_true',
                         help='Test camera/video source and exit')
     parser.add_argument('--headless', action='store_true',
-                        help='Force headless mode (no display). Auto-detected on WSL if not set.')
+                        help='Force headless mode (no display)')
     parser.add_argument('--display', action='store_true',
-                        help='Force display mode (show video). Overrides auto-detection.')
+                        help='Force display mode (try to show video)')
     parser.add_argument('--no-object-detection', action='store_true',
                         help='Disable YOLOv8 object detection (faster processing)')
 
@@ -621,13 +564,11 @@ MOBILE CAMERA SETUP:
     if args.test_camera:
         if args.video:
             print(f"Testing video source: {args.video}")
-            # Validate URL if it looks like an IP camera
-            if args.video.startswith(('http://', 'https://', 'rtsp://', 'rtmp://')):
-                is_valid, error = is_valid_ip_camera_url(args.video)
-                if not is_valid:
-                    print(f"❌ Invalid URL: {error}")
-                    return
-                print("✓ URL format validated")
+            is_valid, error = is_valid_ip_camera_url(args.video)
+            if not is_valid:
+                print(f"❌ Invalid URL: {error}")
+                return
+            print("✓ URL format validated")
             
             is_accessible, error = test_camera_source(args.video)
             if is_accessible:
@@ -643,20 +584,11 @@ MOBILE CAMERA SETUP:
                 print(f"❌ Error: {error}")
         return
 
-    # Determine headless mode
-    headless_mode = None
-    if args.display:
-        headless_mode = False
-    elif args.headless:
-        headless_mode = True
-    # else: None (auto-detect)
-
     # Validate video URL if provided
     if args.video and args.video.startswith(('http://', 'https://', 'rtsp://', 'rtmp://')):
         is_valid, error = is_valid_ip_camera_url(args.video)
         if not is_valid:
             print(f"Error: Invalid video URL - {error}")
-            print("Valid formats: http://..., https://..., rtsp://..., rtmp://...")
             return
 
     app = FaceRecognitionApp(
@@ -664,6 +596,8 @@ MOBILE CAMERA SETUP:
         log_file=args.log_file,
         enable_object_detection=not args.no_object_detection
     )
+    
+    headless_mode = args.headless if args.headless else (None if not args.display else False)
     app.run(camera_index=args.camera, video_file=args.video, headless=headless_mode, display=args.display)
 
 

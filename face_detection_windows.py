@@ -1,7 +1,9 @@
 """
-Real-time Face Recognition Application
+Real-time Face Recognition Application - WINDOWS OPTIMIZED
 Detects faces, recognizes known individuals, checks for mask-wearing,
 logs all detections, and performs object detection using YOLOv8.
+
+This version is optimized for Windows with Tkinter display support.
 """
 
 import argparse
@@ -36,7 +38,7 @@ YOLO_CONFIDENCE_THRESHOLD = 0.5   # YOLOv8 confidence threshold
 
 # Platform detection
 PLATFORM = platform.system()  # 'Linux', 'Windows', 'Darwin'
-IS_WSL = 'microsoft' in platform.release().lower()  # Check if running on WSL
+IS_WINDOWS = PLATFORM == 'Windows'
 
 
 def is_valid_ip_camera_url(url):
@@ -101,7 +103,7 @@ def test_camera_source(source):
 
 
 class DisplayHelper:
-    """Helper class to manage display window with cross-platform support using Tkinter/PIL."""
+    """Helper class to manage display window with Tkinter/PIL for Windows."""
     
     def __init__(self, window_name="Face Recognition", width=800, height=600):
         """
@@ -481,27 +483,21 @@ class FaceRecognitionApp:
             camera_index: Index of the camera to use (if video_file is None).
             video_file: Path to a video file to process instead of camera.
             headless: If True, process without displaying video. 
-                     If None (default), auto-detect based on platform/environment.
-            display: If True, try to show display window (overrides headless auto-detection).
+                     If None (default), auto-detect based on environment.
+            display: If True, try to show display window.
         """
         # Auto-detect headless mode if not explicitly set
         if display:
             headless = False
         elif headless is None:
-            # Use headless mode on WSL by default (unless running with X11 forwarding)
-            if IS_WSL:
-                headless = not os.environ.get('DISPLAY')
-            else:
-                # On native Windows, default to headless (no GTK+ support by default)
-                headless = PLATFORM == 'Windows'
+            # On Windows, default to showing display if available
+            headless = False
         
         # Initialize display helper
         display_helper = DisplayHelper("Face Recognition", width=800, height=600)
         
         print("Starting face recognition application...")
-        print(f"Platform: {PLATFORM}")
-        if IS_WSL:
-            print("Running on WSL (Windows Subsystem for Linux)")
+        print(f"Platform: {PLATFORM} (Windows Optimized)")
         print(f"Logging detections to: {self.logger.get_log_path()}")
         
         # Determine actual display mode
@@ -509,7 +505,7 @@ class FaceRecognitionApp:
         
         if use_display:
             print("Display window enabled")
-            print("Press 'q' to quit")
+            print("Press 'q' or close window to quit")
         else:
             print("Running in headless mode (no display)")
 
@@ -567,33 +563,17 @@ class FaceRecognitionApp:
 def main():
     """Main entry point for the application."""
     parser = argparse.ArgumentParser(
-        description='Real-time Face Recognition with Mask Detection',
+        description='Real-time Face Recognition with Mask Detection (Windows)',
         epilog='''
 EXAMPLES:
   # Use local webcam (index 0)
-  python face_detection.py --camera 0
+  python face_detection_windows.py --camera 0
   
   # Use video file
-  python face_detection.py --video path/to/video.mp4
+  python face_detection_windows.py --video path/to/video.mp4
   
-  # Use IP camera (e.g., IP Webcam app on phone)
-  python face_detection.py --video http://192.168.1.100:8080/video
-  
-  # Use RTSP stream from mobile device or IP camera
-  python face_detection.py --video rtsp://192.168.1.100:554/stream
-  
-  # Force display mode (try to show video window)
-  python face_detection.py --camera 0 --display
-  
-  # Force headless mode (no display, faster processing)
-  python face_detection.py --video http://192.168.1.100:8080/video --headless
-  
-MOBILE CAMERA SETUP:
-  1. Install "IP Webcam" app on your Android phone (Google Play Store)
-  2. Open the app and note the IP address (e.g., 192.168.1.100)
-  3. Run: python face_detection.py --video http://192.168.1.100:8080/video
-  
-  For iPhone: Use apps like "Codeshot" or "Reincubate Codeshot"
+  # Use IP camera from mobile device
+  python face_detection_windows.py --video http://192.168.1.100:8080/video
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -605,13 +585,11 @@ MOBILE CAMERA SETUP:
     parser.add_argument('--camera', '-c', type=int, default=1,
                         help='Camera index to use (0, 1, 2, etc.)')
     parser.add_argument('--video', '-v', default=None,
-                        help='Video source: file path, IP camera URL (http://...), or RTSP stream (rtsp://...)')
+                        help='Video source: file path or IP camera URL')
     parser.add_argument('--test-camera', action='store_true',
                         help='Test camera/video source and exit')
     parser.add_argument('--headless', action='store_true',
-                        help='Force headless mode (no display). Auto-detected on WSL if not set.')
-    parser.add_argument('--display', action='store_true',
-                        help='Force display mode (show video). Overrides auto-detection.')
+                        help='Force headless mode (no display)')
     parser.add_argument('--no-object-detection', action='store_true',
                         help='Disable YOLOv8 object detection (faster processing)')
 
@@ -621,13 +599,11 @@ MOBILE CAMERA SETUP:
     if args.test_camera:
         if args.video:
             print(f"Testing video source: {args.video}")
-            # Validate URL if it looks like an IP camera
-            if args.video.startswith(('http://', 'https://', 'rtsp://', 'rtmp://')):
-                is_valid, error = is_valid_ip_camera_url(args.video)
-                if not is_valid:
-                    print(f"❌ Invalid URL: {error}")
-                    return
-                print("✓ URL format validated")
+            is_valid, error = is_valid_ip_camera_url(args.video)
+            if not is_valid:
+                print(f"❌ Invalid URL: {error}")
+                return
+            print("✓ URL format validated")
             
             is_accessible, error = test_camera_source(args.video)
             if is_accessible:
@@ -643,20 +619,11 @@ MOBILE CAMERA SETUP:
                 print(f"❌ Error: {error}")
         return
 
-    # Determine headless mode
-    headless_mode = None
-    if args.display:
-        headless_mode = False
-    elif args.headless:
-        headless_mode = True
-    # else: None (auto-detect)
-
     # Validate video URL if provided
     if args.video and args.video.startswith(('http://', 'https://', 'rtsp://', 'rtmp://')):
         is_valid, error = is_valid_ip_camera_url(args.video)
         if not is_valid:
             print(f"Error: Invalid video URL - {error}")
-            print("Valid formats: http://..., https://..., rtsp://..., rtmp://...")
             return
 
     app = FaceRecognitionApp(
@@ -664,7 +631,9 @@ MOBILE CAMERA SETUP:
         log_file=args.log_file,
         enable_object_detection=not args.no_object_detection
     )
-    app.run(camera_index=args.camera, video_file=args.video, headless=headless_mode, display=args.display)
+    
+    headless_mode = True if args.headless else False
+    app.run(camera_index=args.camera, video_file=args.video, headless=headless_mode, display=not args.headless)
 
 
 if __name__ == "__main__":
